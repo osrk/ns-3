@@ -1,3 +1,3 @@
 # ns-3
 
-## Windows WSL インストール
+- [Windows WSL インストール](install-windows-ws.md)
