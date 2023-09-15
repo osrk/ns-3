@@ -1,8 +1,6 @@
 # ns-3
 
-Windows
-g++をインストールした
-CMake.txtを変更した
+## Windows WSL インストール
 
 ```
 tar jxf ../ns-allinone-3.39.tar.bz2
@@ -10,7 +8,7 @@ cd ns-allinone-3.39/ns-3.39/
 ./ns3 configure --enable-examples --enable-tests
 ```
 
-エラー発生
+エラー発生したので、必要そうなパッケージをインストールする。
 
 ```
 sudo apt-get update
@@ -23,7 +21,8 @@ sudo apt install g++
 ./ns3 configure --enable-examples --enable-tests
 ```
 
-エラー発生
+またエラー発生
+
 ```
 -- Configuring done
 CMake Error at build-support/custom-modules/ns3-module-macros.cmake:81 (add_library):
@@ -50,4 +49,5 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 ```
 ./ns3 configure --enable-examples --enable-tests
 ./ns3 build
+./test.py 
 ```
