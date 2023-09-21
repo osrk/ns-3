@@ -187,9 +187,9 @@ Ipv4InterfaceContainer interfaces = address.Assign(devices);
 以下のコードは、前に作成したノードの1つにUDPエコーサーバーアプリケーションをセットアップするために使用されます。
 
 ```
-UdpEchoServerHelper echoServer(9);
+UdpEchoServerHelper echoServer(9); // Port 9
 
-ApplicationContainer serverApps = echoServer.Install(nodes.Get(1));
+ApplicationContainer serverApps = echoServer.Install(nodes.Get(1)); // Node #1 にAppをインストール
 serverApps.Start(Seconds(1.0));
 serverApps.Stop(Seconds(10.0));
 ```
@@ -229,12 +229,12 @@ serverApps.Stop(Seconds(10.0));
 
 - 以下のコードでは、エコークライアントを設定していますが、サーバーの場合と同様の手順です。
 ```
-    UdpEchoClientHelper echoClient(interfaces.GetAddress(1), 9);
+    UdpEchoClientHelper echoClient(interfaces.GetAddress(1), 9); // Remote Server (Node #1) の IP アドレス、Port 9
     echoClient.SetAttribute("MaxPackets", UintegerValue(1));
     echoClient.SetAttribute("Interval", TimeValue(Seconds(1.0)));
     echoClient.SetAttribute("PacketSize", UintegerValue(1024));
 
-    ApplicationContainer clientApps = echoClient.Install(nodes.Get(0));
+    ApplicationContainer clientApps = echoClient.Install(nodes.Get(0)); // Node #0 に App をインストール
     clientApps.Start(Seconds(2.0));
     clientApps.Stop(Seconds(10.0));
 ```
@@ -243,9 +243,8 @@ serverApps.Stop(Seconds(10.0));
 - ヘルパーのコンストラクタにパラメータを渡し、ヘルパー内部で「RemoteAddress」と「RemotePort」属性を設定するための慣例に従っています。
 
 - Ipv4InterfaceContainerを使用して、デバイスに割り当てたIPアドレスを追跡しました。
-- interfacesコンテナのゼロ番目のインターフェースは、nodesコンテナのゼロ番目のノードに割り当てられたIPアドレスに対応します。
-- interfacesコンテナの最初のインターフェースは、nodesコンテナの最初のノードに割り当てられたIPアドレスに対応します。
-- したがって、上記のコードの最初の行では、ヘルパーを作成し、クライアントのリモートアドレスを、サーバーが存在するノードに割り当てられたIPアドレスに設定するように指定しています。
+  - interfacesコンテナの最初のインターフェースは、nodesコンテナの最初のノードに割り当てられたIPアドレスに対応します。
+  - したがって、上記のコードの最初の行では、ヘルパーを作成し、クライアントのリモートアドレスを、サーバーが存在するノードに割り当てられたIPアドレスに設定するように指定しています。
 - また、ポート9にパケットを送信するように指示しています。
 - 
 - 「MaxPackets」属性は、シミュレーション中にクライアントが送信できる最大パケット数をクライアントに伝えます。
