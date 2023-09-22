@@ -374,3 +374,338 @@ UdpEchoClientApplication:StopApplication(0xef90d0)
 UdpEchoClientApplication:DoDispose(0xef90d0)
 UdpEchoClientApplication:~UdpEchoClient(0xef90d0)
 ```
+
+- 上の例だと “Received 1024 bytes from 10.1.1.2” がどこから出てきたのかわからない。
+- 次のように`prefix_func`をOR条件で指定して解決する。(クオートが必要)
+```
+$ export 'NS_LOG=UdpEchoClientApplication=level_all|prefix_func'
+```
+実行すると、指定されたログコンポーネントからのすべてのメッセージにコンポーネント名がプレフィックスとして付けられていることを確認できる。
+```
+UdpEchoClientApplication:UdpEchoClient(0xea8e50)
+UdpEchoClientApplication:SetDataSize(0xea8e50, 1024)
+UdpEchoClientApplication:StartApplication(0xea8e50)
+UdpEchoClientApplication:ScheduleTransmit(0xea8e50, +0ns)
+UdpEchoClientApplication:Send(0xea8e50)
+UdpEchoClientApplication:Send(): At time +2s client sent 1024 bytes to 10.1.1.2 port 9
+At time +2.00369s server received 1024 bytes from 10.1.1.1 port 49153
+At time +2.00369s server sent 1024 bytes to 10.1.1.1 port 49153
+UdpEchoClientApplication:HandleRead(0xea8e50, 0xea5b20)
+UdpEchoClientApplication:HandleRead(): At time +2.00737s client received 1024 bytes from 10.1.1.2 port 9
+UdpEchoClientApplication:StopApplication(0xea8e50)
+UdpEchoClientApplication:DoDispose(0xea8e50)
+UdpEchoClientApplication:~UdpEchoClient(0xea8e50)
+```
+- これで、UDP エコー クライアント アプリケーションからのすべてのメッセージがそのように識別されることがわかります。「10.1.1.2 から 1024 バイトを受信しました」というメッセージが、エコー クライアント アプリケーションからのものであることが明確に識別されるようになりました。
+
+- 残りのメッセージはUDP echo server applicationのものと思われる。次のようにコロンでセパレートして設定する。
+
+```
+$ export 'NS_LOG=UdpEchoClientApplication=level_all|prefix_func:UdpEchoServerApplication=level_all|prefix_func'
+```
+実行結果。Serverのメッセージにもプレフィックスがつけられる。
+```
+UdpEchoServerApplication:UdpEchoServer(0x2101590)
+UdpEchoClientApplication:UdpEchoClient(0x2101820)
+UdpEchoClientApplication:SetDataSize(0x2101820, 1024)
+UdpEchoServerApplication:StartApplication(0x2101590)
+UdpEchoClientApplication:StartApplication(0x2101820)
+UdpEchoClientApplication:ScheduleTransmit(0x2101820, +0ns)
+UdpEchoClientApplication:Send(0x2101820)
+UdpEchoClientApplication:Send(): At time +2s client sent 1024 bytes to 10.1.1.2 port 9
+UdpEchoServerApplication:HandleRead(0x2101590, 0x2106240)
+UdpEchoServerApplication:HandleRead(): At time +2.00369s server received 1024 bytes from 10.1.1.1 port 49153
+UdpEchoServerApplication:HandleRead(): Echoing packet
+UdpEchoServerApplication:HandleRead(): At time +2.00369s server sent 1024 bytes to 10.1.1.1 port 49153
+UdpEchoClientApplication:HandleRead(0x2101820, 0x21134b0)
+UdpEchoClientApplication:HandleRead(): At time +2.00737s client received 1024 bytes from 10.1.1.2 port 9
+UdpEchoClientApplication:StopApplication(0x2101820)
+UdpEchoServerApplication:StopApplication(0x2101590)
+UdpEchoClientApplication:DoDispose(0x2101820)
+UdpEchoServerApplication:DoDispose(0x2101590)
+UdpEchoClientApplication:~UdpEchoClient(0x2101820)
+UdpEchoServerApplication:~UdpEchoServer(0x2101590)
+```
+- prefix_time を指定すると、時刻を出力できる。
+```
+$ export 'NS_LOG=UdpEchoClientApplication=level_all|prefix_func|prefix_time:UdpEchoServerApplication=level_all|prefix_func|prefix_time'
+```
+実行結果
+```
++0.000000000s UdpEchoServerApplication:UdpEchoServer(0x8edfc0)
++0.000000000s UdpEchoClientApplication:UdpEchoClient(0x8ee210)
++0.000000000s UdpEchoClientApplication:SetDataSize(0x8ee210, 1024)
++1.000000000s UdpEchoServerApplication:StartApplication(0x8edfc0)
++2.000000000s UdpEchoClientApplication:StartApplication(0x8ee210)
++2.000000000s UdpEchoClientApplication:ScheduleTransmit(0x8ee210, +0ns)
++2.000000000s UdpEchoClientApplication:Send(0x8ee210)
++2.000000000s UdpEchoClientApplication:Send(): At time +2s client sent 1024 bytes to 10.1.1.2 port 9
++2.003686400s UdpEchoServerApplication:HandleRead(0x8edfc0, 0x936770)
++2.003686400s UdpEchoServerApplication:HandleRead(): At time +2.00369s server received 1024 bytes from 10.1.1.1 port 49153
++2.003686400s UdpEchoServerApplication:HandleRead(): Echoing packet
++2.003686400s UdpEchoServerApplication:HandleRead(): At time +2.00369s server sent 1024 bytes to 10.1.1.1 port 49153
++2.007372800s UdpEchoClientApplication:HandleRead(0x8ee210, 0x8f3140)
++2.007372800s UdpEchoClientApplication:HandleRead(): At time +2.00737s client received 1024 bytes from 10.1.1.2 port 9
++10.000000000s UdpEchoClientApplication:StopApplication(0x8ee210)
++10.000000000s UdpEchoServerApplication:StopApplication(0x8edfc0)
+UdpEchoClientApplication:DoDispose(0x8ee210)
+UdpEchoServerApplication:DoDispose(0x8edfc0)
+UdpEchoClientApplication:~UdpEchoClient(0x8ee210)
+UdpEchoServerApplication:~UdpEchoServer(0x8edfc0)
+```
+- システム内のすべてのロギング コンポーネントをオンにするには、NS_LOG変数を次のように設定する。
+```
+$ export 'NS_LOG=*=level_all|prefix_func|prefix_time'
+```
+- アスタリスクは、ロギング コンポーネントのワイルドカード
+- ログは大量に出力されるので、必要に応じて、ファイルにリダイレクトする。
+```
+$ ./ns3 run scratch/myfirst > log.out 2>&1
+```
+- 問題が発生し、どこで問題が発生しているのかわからないときに、この非常に詳細なバージョンのロギングを使用しています。
+  - ブレークポイントを設定したり、デバッガーでコードをステップ実行したりする必要がなく、コードの進行状況を非常に簡単に追跡できます。お気に入りのエディターで出力を編集し、期待するものを探し回ったり、予想外のことが起こったりするだけです。
+- 何が問題なのかについて大まかなアイデアが得られたら、デバッガーに移行して問題を詳細に調査します。
+- この種の出力は、スクリプトがまったく予期しない動作をする場合に特に役立ちます。
+  - デバッガーを使用してステップ実行している場合、予期しないエクスカーションを完全に見逃してしまう可能性があります。
+  - エクスカーションを記録すると、すぐに確認できるようになります。
+
+### コードへのロギングの追加
+
+スクリプトのロギングコンポーネントを以下のように設定していた。
+```
+NS_LOG_COMPONENT_DEFINE("FirstScriptExample");
+```
+ファイルに次の行を追加する。
+```
+NS_LOG_INFO("Creating Topology");
+```
+
+次に、ns3 を使用してスクリプトを構築し、NS_LOG変数をクリアして、前に有効にしたログのトレントをオフにします。
+```
+$ ./ns3
+$ export NS_LOG=""
+```
+ここで、スクリプトを実行すると、
+```
+$ ./ns3 run scratch/myfirst
+```
+ログ コンポーネント ( FirstScriptExample) が有効になっていないため、メッセージが表示されない。
+次のコマンドで有効化する
+```
+$ export NS_LOG=FirstScriptExample=info
+```
+ここでスクリプトを実行すると、新しい「Creating Topology」ログ メッセージが表示されます。
+```
+Creating Topology
+At time +2s client sent 1024 bytes to 10.1.1.2 port 9
+At time +2.00369s server received 1024 bytes from 10.1.1.1 port 49153
+At time +2.00369s server sent 1024 bytes to 10.1.1.1 port 49153
+At time +2.00737s client received 1024 bytes from 10.1.1.2 port 9
+```
+
+## コマンドライン引数の使用
+### デフォルト属性の上書き
+
+- コマンドライン引数を解析し、それらの引数に基づいてローカル変数とグローバル変数を自動的に設定するメカニズムを提供します。
+- コマンド ライン引数システムを使用する最初の手順は、コマンド ライン パーサーを宣言することです。これは、次のコードのように非常に簡単に (メイン プログラム内で) 行われます。
+```
+int
+main(int argc, char *argv[])
+{
+  ...
+
+  CommandLine cmd;
+  cmd.Parse(argc, argv);
+
+  ...
+}
+```
+- 次の方法でスクリプトにヘルプを求めます。
+```
+$ ./ns3 run "scratch/myfirst --PrintHelp"
+```
+- 次のように応答します。
+
+```
+myfirst [General Arguments]
+General Arguments:
+  --PrintGlobals:              Print the list of globals.
+  --PrintGroups:               Print the list of groups.
+  --PrintGroup=[group]:        Print all TypeIds of group.
+  --PrintTypeIds:              Print all TypeIds.
+  --PrintAttributes=[typeid]:  Print all attributes of typeid.
+  --PrintVersion:              Print the ns-3 version.
+  --PrintHelp:                 Print this help message.
+```
+
+- --PrintAttributes。オプションに焦点を当てる。
+```
+PointToPointHelper pointToPoint;
+pointToPoint.SetDeviceAttribute("DataRate", StringValue("5Mbps"));
+pointToPoint.SetChannelAttribute("Delay", StringValue("2ms"));
+```
+そして、それはDataRate実際には の であるとAttribute述べましたPointToPointNetDevice。Attributesコマンド ライン引数パーサーを使用して、 PointToPointNetDevice を見てみましょう。ヘルプ リストには、 を提供する必要があると記載されていますTypeId。が所属するクラスのクラス名に相当しますAttributes。この場合は となりますns3::PointToPointNetDevice。先に進んで入力してみましょう。
+```
+$ ./ns3 run "scratch/myfirst --PrintAttributes=ns3::PointToPointNetDevice"
+```
+
+```
+--ns3::PointToPointNetDevice::DataRate=[32768bps]:
+  The default data rate for point to point links
+```
+- これは、システムでPointToPointNetDevice が作成されるときに使用されるデフォルト値。
+- このデフォルトをAttribute設定でオーバーライドしました。
+- SetDeviceAttributeコールを削除して、ポイントツーポイント デバイスとチャネルのデフォルト値を使用する。
+```
+...
+
+NodeContainer nodes;
+nodes.Create(2);
+
+PointToPointHelper pointToPoint;
+
+NetDeviceContainer devices;
+devices = pointToPoint.Install(nodes);
+
+...
+```
+- 実行すると、時刻が変化する。(略)
+- コマンドラインを使用してDataRateものを指定すると、シミュレーションを再び高速化できます
+```
+$ ./ns3 run "scratch/myfirst --ns3::PointToPointNetDevice::DataRate=5Mbps"
+```
+Ｃｈａｎｎｅｌのレイテンシのデフォルト
+```
+$ ./ns3 run "scratch/myfirst --PrintAttributes=ns3::PointToPointChannel"
+```
+Delay Attributeチャネルが次のように設定されていることがわかります。
+```
+--ns3::PointToPointChannel::Delay=[0ns]:
+  Transmission delay through the channel
+```
+コマンド ライン システムを使用して、これらのデフォルト値を両方とも設定できます。
+```
+$ ./ns3 run "scratch/myfirst
+  --ns3::PointToPointNetDevice::DataRate=5Mbps
+  --ns3::PointToPointChannel::Delay=2ms"
+```
+この場合、スクリプト内でDataRateと を明示的に設定したときのタイミングを回復します。Delay
+```
++0.000000000s UdpEchoServerApplication:UdpEchoServer(0x1df20f0)
++1.000000000s UdpEchoServerApplication:StartApplication(0x1df20f0)
+At time +2s client sent 1024 bytes to 10.1.1.2 port 9
++2.003686400s UdpEchoServerApplication:HandleRead(0x1df20f0, 0x1de0250)
++2.003686400s At time +2.00369s server received 1024 bytes from 10.1.1.1 port 49153
++2.003686400s Echoing packet
++2.003686400s At time +2.00369s server sent 1024 bytes to 10.1.1.1 port 49153
+At time +2.00737s client received 1024 bytes from 10.1.1.2 port 9
++10.000000000s UdpEchoServerApplication:StopApplication(0x1df20f0)
+UdpEchoServerApplication:DoDispose(0x1df20f0)
+UdpEchoServerApplication:~UdpEchoServer(0x1df20f0)
+```
+MaxPackets
+```
+$ ./ns3 run "scratch/myfirst
+  --ns3::PointToPointNetDevice::DataRate=5Mbps
+  --ns3::PointToPointChannel::Delay=2ms
+  --ns3::UdpEchoClient::MaxPackets=2"
+```
+この時点で当然の疑問は、これらすべての属性の存在をどのようにして知るかということです。繰り返しますが、コマンド ライン ヘルプ機能にはこれに関する機能があります。コマンドラインのヘルプを求めると、以下が表示されるはずです。
+```
+$ ./ns3 run "scratch/myfirst --PrintHelp"
+myfirst [General Arguments]
+
+General Arguments:
+  --PrintGlobals:              Print the list of globals.
+  --PrintGroups:               Print the list of groups.
+  --PrintGroup=[group]:        Print all TypeIds of group.
+  --PrintTypeIds:              Print all TypeIds.
+  --PrintAttributes=[typeid]:  Print all attributes of typeid.
+  --PrintVersion:              Print the ns-3 version.
+  --PrintHelp:                 Print this help message.
+```
+「PrintGroups」引数を選択すると、登録されているすべての TypeId グループのリストが表示されます。グループ名は、ソース ディレクトリ内のモジュール名と一致します (先頭が大文字になります)。すべての情報を一度に印刷すると多すぎるため、グループごとに情報を印刷するための追加のフィルターを使用できます。そこで、再びポイントツーポイント モジュールに焦点を当てます。
+```
+./ns3 run "scratch/myfirst --PrintGroup=PointToPoint"
+TypeIds in group PointToPoint:
+  ns3::PointToPointChannel
+  ns3::PointToPointNetDevice
+  ns3::PppHeader
+```
+ここから、--PrintAttributes=ns3::PointToPointChannel上記の例のように、属性を検索するための可能な TypeId 名を見つけることができます。
+
+属性について調べるもう 1 つの方法は、ns-3 Doxygen を使用することです。シミュレータに登録されているすべての属性をリストするページがあります。
+
+
+### 独自の値をフックする
+
+- 独自のフックをコマンド ライン システムに追加することもできます。
+- この機能を使用して、別の方法でエコーするパケットの数を指定してみましょう。
+- nPackets関数に呼び出されるローカル変数を追加しましょう
+  - 以前のデフォルトの動作と一致するように、これを 1 に初期化します。
+  - コマンドラインパーサーがこの値を変更できるようにするには、値をパーサーにフックする必要があります。
+  - これを行うには、 AddValueへの呼び出しを追加します。
+```
+int
+main(int argc, char *argv[])
+{
+  uint32_t nPackets = 1;
+
+  CommandLine cmd;
+  cmd.AddValue("nPackets", "Number of packets to echo", nPackets);
+  cmd.Parse(argc, argv);
+
+  ...
+```
+- ス以下に示すように定数ではなくnPacketsをMaxPackets Attribute変数に設定されるように変更します。
+```
+echoClient.SetAttribute("MaxPackets", UintegerValue(nPackets));
+```
+- ここで、スクリプトを実行して--PrintHelp引数を指定すると、ヘルプ表示に新しいリストが表示されるはずです。
+```
+$ ./ns3 build
+$ ./ns3 run "scratch/myfirst --PrintHelp"
+
+[Program Options] [General Arguments]
+
+Program Options:
+  --nPackets:  Number of packets to echo [1]
+
+General Arguments:
+  --PrintGlobals:              Print the list of globals.
+  --PrintGroups:               Print the list of groups.
+  --PrintGroup=[group]:        Print all TypeIds of group.
+  --PrintTypeIds:              Print all TypeIds.
+  --PrintAttributes=[typeid]:  Print all attributes of typeid.
+  --PrintVersion:              Print the ns-3 version.
+  --PrintHelp:                 Print this help message.
+```
+--nPacketsエコーするパケットの数を指定したい場合は、コマンドラインで引数を設定することで指定できるようになりました。
+```
+$ ./ns3 run "scratch/myfirst --nPackets=2"
+```
+実行結果
+```
++0.000000000s UdpEchoServerApplication:UdpEchoServer(0x836e50)
++1.000000000s UdpEchoServerApplication:StartApplication(0x836e50)
+At time +2s client sent 1024 bytes to 10.1.1.2 port 9
++2.003686400s UdpEchoServerApplication:HandleRead(0x836e50, 0x8450c0)
++2.003686400s At time +2.00369s server received 1024 bytes from 10.1.1.1 port 49153
++2.003686400s Echoing packet
++2.003686400s At time +2.00369s server sent 1024 bytes to 10.1.1.1 port 49153
+At time +2.00737s client received 1024 bytes from 10.1.1.2 port 9
+At time +3s client sent 1024 bytes to 10.1.1.2 port 9
++3.003686400s UdpEchoServerApplication:HandleRead(0x836e50, 0x8450c0)
++3.003686400s At time +3.00369s server received 1024 bytes from 10.1.1.1 port 49153
++3.003686400s Echoing packet
++3.003686400s At time +3.00369s server sent 1024 bytes to 10.1.1.1 port 49153
+At time +3.00737s client received 1024 bytes from 10.1.1.2 port 9
++10.000000000s UdpEchoServerApplication:StopApplication(0x836e50)
+UdpEchoServerApplication:DoDispose(0x836e50)
+UdpEchoServerApplication:~UdpEchoServer(0x836e50)
+```
+- 2 つのパケットがエコーされました。
+
+## トレースシステムの使用
+
+
