@@ -1,5 +1,28 @@
 # ns-3 メモ
 
+
+## DCQCN
+https://github.com/bobzhuyb/ns3-rdma
+
+### What did we add exactly?
+
+- point-to-point/model/qbb-net-device.cc and all other qbb-* files:
+  - **DCQCN and PFC implementation**. It also includes go-back-to-N and go-back-to-0 that handle packet drop due to corruption.
+  - In 2013, we got a very basic NS-3 PFC implementation somewhere, and developed based on it. We cannot find the original repository anymore.
+- network/model/broadcom-node.cc and .h:
+  - This implements a **Broadcom ASIC switch model**, which is mostly doing all kinds of buffer threshold-related operations. These include deciding whether PFC should be triggered, ECN should be marked, buffer is too full so packets should be dropped, etc. It supports both static and dynamic thresholds for PFC.
+  - Disclaim: this module is purely based on authors' personal understanding of Broadcom ASIC. It does not reflect any official confirmation from either Microsoft or Broadcom.
+- network/utils/broadcom-egress-queue.cc and .h:
+  - This is the actual **MMU buffering packets**. It also includes switch scheduler, i.e., when upper layer ask for a packet to send, it will decide which queue to be dequeued. Strategies like strict priority and round robin are supported.
+- applications/model/udp-echo-client.cc:
+  - We implement the RDMA client here, which aligns with the fact that RoCEv2 includes UDP header. In particular, original UDP client has troubles when PFC pause the link. Original UDP client keeps sending packets at line rate, soon it builds up huge queue and memory runs out. Here we throttle the sending rate if it gets pushed back by PFC.
+- internet/model/seq-ts-header.cc and .h:
+  - We didn't implement the full InfiniBand header. Instead, what we really need is just the sequence number (for detecting corruption drops, and also help us understand the throughput) and timestamp (required by TIMELY.) This is where we encode this information into packets.
+- main/third.cc:
+  - The main() function.
+  - There may be other edits here and there, especially the trace generation is scattered among various network stacks. But above are the major ones.
+
+
 # Tutorial
 [Tutorial Page](https://www.nsnam.org/docs/release/3.39/tutorial/singlehtml/index.html)
 
@@ -708,4 +731,123 @@ UdpEchoServerApplication:~UdpEchoServer(0x836e50)
 
 ## トレースシステムの使用
 
+- このチュートリアルでは、いくつかの事前定義されたソースとシンクについて説明し、ユーザーの労力をほとんどかけずにそれらをカスタマイズする方法を示します。
+- トレース名前空間の拡張や新しいトレース ソースの作成など、高度なトレース設定の詳細については、ns-3 マニュアルまたはハウツー セクションを参照してください。
 
+### ASCII トレース
+
+ns-3 は、低レベルのトレース システムをラップするヘルパー機能を提供し、理解しやすいパケット トレースの構成に関する詳細を支援します。この機能を有効にすると、出力が ASCII ファイルで表示され、それが名前になります。ns-2 の出力に詳しい人にとって、このタイプのトレースはout.tr多くのスクリプトによって生成されるトレースに似ています。
+
+- ASCII トレース出力をスクリプトに追加してみましょう
+- Simulator::Run()への呼び出しの直前に、次のコード行を追加します。
+```
+AsciiTraceHelper ascii;
+pointToPoint.EnableAsciiAll(ascii.CreateFileStream("myfirst.tr"));
+```
+- 他の多くのns-3イディオムと同様に、このコードはヘルパー オブジェクトを使用して ASCII トレースの作成を支援します。
+- 2 行目には 2 つのネストされたメソッド呼び出しが含まれています。
+- 「内部」メソッドは、CreateFileStream()イディオムを使用してスタック上にファイル ストリーム オブジェクト (オブジェクト名なし) を作成し、それを呼び出されたメソッドに渡します。
+- これについては今後さらに詳しく説明しますが、この時点で知っておく必要があるのは、「myfirst.tr」という名前のファイルを表すオブジェクトを作成し、それを ns-3 に渡すことだけです。
+
+- EnableAsciiAll()シミュレーション内のすべてのポイントツーポイント デバイスで ASCII トレースを有効にすることをヘルパーに伝えます
+- そして、(提供された) トレース シンクにパケットの移動に関する情報を ASCII 形式で書き出すようにしたいとします。。
+
+これで、スクリプトをビルドしてコマンド ラインから実行できるようになります。
+```
+$ ./ns3 run scratch/myfirst
+```
+- 実行すると、プログラムは myfirst.tr という名前のファイルを作成します。
+- ns3 の動作方法により、ファイルはローカル ディレクトリには作成されず、デフォルトではリポジトリの最上位ディレクトリに作成されます。
+- トレースの保存場所を制御したい場合は、--cwdns3 のオプションを使用してこれを指定できます。
+- myfirst.trまだそれを行っていないため、リポジトリの最上位ディレクトリに移動し、お気に入りのエディタでASCII トレース ファイルを確認する必要があります。
+
+#### アスキートレースの解析
+略
+
+### PCAP トレース
+
+- pcap形式でトレース ファイルを作成することもできます.
+- この形式を読み取って表示できる最も一般的なプログラムは、Wireshark (以前は Ethereal と呼ばれていました) です。
+- このチュートリアルでは、tcpdump を使用して pcap トレースを表示することに重点を置きます。
+
+- pcap トレースを有効にするために使用されるコードはワンライナーです。
+```
+pointToPoint.EnablePcapAll("myfirst");
+```
+先に追加したばかりの ASCII トレース コードの後に​​、このコード行を挿入しますscratch/myfirst.cc。「myfirst.pcap」などの文字列ではなく、「myfirst」という文字列のみを渡していることに注意してください。これは、パラメータが完全なファイル名ではなく接頭辞であるためです。ヘルパーは実際に、シミュレーション内のすべてのポイントツーポイント デバイスのトレース ファイルを作成します。ファイル名は、プレフィックス、ノード番号、デバイス番号、および「.pcap」サフィックスを使用して構築されます。
+
+このスクリプト例では、最終的に「myfirst-0-0.pcap」および「myfirst-1-0.pcap」という名前のファイルが表示されます。これらは、それぞれノード 0-デバイス 0 およびノー​​ド 1-デバイス 0 の pcap トレースです。
+
+pcap トレースを有効にするコード行を追加したら、通常の方法でスクリプトを実行できます。
+```
+$ ./ns3 run scratch/myfirst
+```
+- ディストリビューションの最上位ディレクトリを見ると、3 つのログ ファイルが表示されるはずです。
+  - myfirst.trは、以前に調べた ASCII トレース ファイルです。
+  - myfirst-0-0.pcapと は、myfirst-1-0.pcap生成したばかりの新しい pcap ファイルです。
+
+#### tcpdump による出力の読み取り
+
+6.3.2.1. tcpdump による出力の読み取り
+
+この時点でpcap解析を行う最も簡単な方法は、 tcpdumpを使用してファイルを確認することです。
+```
+$ tcpdump -nn -tt -r myfirst-0-0.pcap
+reading from file myfirst-0-0.pcap, link-type PPP (PPP)
+2.000000 IP 10.1.1.1.49153 > 10.1.1.2.9: UDP, length 1024
+2.514648 IP 10.1.1.2.9 > 10.1.1.1.49153: UDP, length 1024
+
+tcpdump -nn -tt -r myfirst-1-0.pcap
+reading from file myfirst-1-0.pcap, link-type PPP (PPP)
+2.257324 IP 10.1.1.1.49153 > 10.1.1.2.9: UDP, length 1024
+2.257324 IP 10.1.1.2.9 > 10.1.1.1.49153: UDP, length 1024
+```
+- (クライアント デバイスの) myfirst-0-0.pcap ダンプを見ると、エコー パケットがシミュレーション開始の 2 秒目に送信されていることがわかります。
+- 2 番目のダンプ (myfirst-1-0.pcap) を見ると、パケットが 2.257324 秒で受信されていることがわかります。
+- 2 番目のダンプでは 2.257324 秒でパケットがエコー バックされていることがわかり、最後に、最初のダンプでは 2.514648 秒でパケットがクライアントで受信されていることがわかります。
+
+#### Wireshark による出力の読み取り
+
+- Wireshark は、これらのトレース ファイルを表示するために使用できるグラフィカル ユーザー インターフェイスです。
+- Wireshark を使用できる場合は、各トレース ファイルを開いて、パケット スニファを使用してパケットをキャプチャしたかのように内容を表示できます。
+- 
+# トポロジの構築
+## バスネットワークトポロジの構築
+CSMA
+
+```
+// Default Network Topology
+//
+//       10.1.1.0
+// n0 -------------- n1   n2   n3   n4
+//    point-to-point  |    |    |    |
+//                    ================
+//                      LAN 10.1.2.0
+
+```
+
+## モデル、属性、現実
+シミュレーションを使用する場合、モデル化されているものとされていないものを正確に理解することが重要です。たとえば、前のセクションで使用されたCSMAデバイスとチャネルを、実際のイーサネットデバイスであるかのように考え、シミュレーション結果が実際のイーサネットで起こることを直接反映するものであると期待することは誤りです。これは事実ではありません。
+
+モデルは、定義上、現実の抽象化です。シミュレーションスクリプトの作成者は、シミュレーション全体およびその構成要素の「精度範囲」と「適用範囲」を決定する責任が最終的にあります。
+
+Csmaなどの場合、モデル化されていないものを比較的簡単に特定することができる場合があります。モデルの説明（csma.h）を読むことで、CSMAモデルには衝突検出がないことがわかり、その使用がシミュレーションにどれだけ適用可能か、または結果に含めるべき注意事項を決定することができます。他の場合では、購入できる現実と一致しない動作を簡単に設定できる場合があります。いくつかの具体例を調査し、シミュレーションで現実の範囲外に簡単に逸脱できる方法を調べることは価値があるでしょう。
+
+ご覧のように、ns-3では、ユーザーがモデルの動作を簡単に変更できる属性（Attributes）が提供されています。CsmaNetDeviceの2つの属性（MtuおよびEncapsulationMode）を考えてみましょう。Mtu属性はデバイスへの最大転送単位（MTU）を示します。これは、デバイスが送信できる最大プロトコルデータユニット（PDU）のサイズです。
+
+CsmaNetDeviceではMTUのデフォルト値は1500バイトです。このデフォルト値はRFC 894「Ethernet Networks上でIP Datagramを転送するための標準」で見つかった数値に対応しています。この数値は実際には10Base5（フルスペックEthernet）ネットワーク用の最大パケットサイズから派生しています
+
+## Building a Wireless Network Topology
+
+```
+// Default Network Topology
+//
+//   Wifi 10.1.3.0
+//                 AP
+//  *    *    *    *
+//  |    |    |    |    10.1.1.0
+// n5   n6   n7   n0 -------------- n1   n2   n3   n4
+//                   point-to-point  |    |    |    |
+//                                   ================
+//                                     LAN 10.1.2.0
+```
